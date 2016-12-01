@@ -1,0 +1,235 @@
+global proc bakeloc()
+{
+if(`window -ex bakelocWindow`) deleteUI bakelocWindow;
+string $windowName = `window -title "bakeloc" bakelocWindow`;
+columnLayout;
+    rowLayout -numberOfColumns 2 -columnWidth2 120 120 -columnAttach2 left left;
+        button -label "ロケータにベイク" -w 120 -command "bakeToLoc" bakeToLocButton;   
+        button -label "オリジナルにベイク" -w 120 -command "bakeToOrigin" bakeToOriginButton;   
+    setParent ..;
+    rowLayout -numberOfColumns 2 -columnWidth2 120 120 -columnAttach2 left left;
+        button -label "ロケータを選択" -w 120 -command "selectToLoc" selectToLocButton;
+        button -label "オリジナルを選択" -w 120 -command "selectToOrigin" selectToOriginButton;
+    setParent ..;
+    rowLayout -numberOfColumns 2 -columnWidth2 120 120 -columnAttach2 left left;
+        button -label "更新" -w 120 -command "Renew" RenewButton;   
+        columnLayout BLAttr;
+    setParent ..;
+setParent ..;
+showWindow;
+}
+
+global proc bakeToLoc()
+{
+string $alphabet[] = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","y","z"};
+string $SelAll[] = `ls -sl`;
+int $Selsize = `size($SelAll)`;
+float $Fframe  = `playbackOptions -q -min`;
+float $Lframe  = `playbackOptions -q -max`;
+string $locAll[];
+int $alphabetNum = 0;
+string $alphabetList[];
+string $alplist[];
+
+if(0 == `objExists ("*bakeloc_z_*")`)
+    {
+        while(0 != `objExists ("*bakeloc_" + $alphabet[$alphabetNum] + "_*")`)
+        {
+        $alphabetNum++;
+        }
+    for($i = 0; $i < $Selsize; $i++)
+        {
+        spaceLocator -n ("bakeloc_" + $alphabet[$alphabetNum] + "_"+ $i);
+        parentConstraint $SelAll[$i] ("bakeloc_" + $alphabet[$alphabetNum] + "_"+ $i);
+        $locAll[$i] = ("bakeloc_" + $alphabet[$alphabetNum] + "_"+ $i);
+        }
+    bakeResults -simulation 1 -t ($Fframe + ":"+ $Lframe) -pok 0  $locAll;
+    for($i = 0; $i < $Selsize;$i++)
+        {
+        delete ($locAll[$i] + "_parentConstraint1");
+        }
+    group -n ("gbakeloc_" + $alphabet[$alphabetNum]) $locAll;
+    optionVar -rm ("SelAllList" + $alphabet[$alphabetNum] );
+    optionVar -rm ("locAllList" + $alphabet[$alphabetNum] );
+    optionVar -rm "bakelocCheck";
+    for ($each in $SelAll)
+        {
+        optionVar -sva   ("SelAllList" + $alphabet[$alphabetNum] ) $each;
+        }
+    for ($each in $locAll)
+        {
+        optionVar -sva  ("locAllList" + $alphabet[$alphabetNum] ) $each;
+        }
+    for($i = 0; $i <  `size($alphabet)`; $i++)
+        {
+        if(1 == `objExists ("*bakeloc_" + $alphabet[$i] + "_*")`)
+            {
+            $alplist[0] = $alphabet[$i];
+            appendStringArray($alphabetList, $alplist, size($alplist));
+            }
+        }
+    if(1 <= `size($alphabetList)`)
+        {
+        if(1 == `scrollLayout -ex ScrollalphabetList`)
+            {
+            deleteUI -lay ScrollalphabetList;
+            }
+            columnLayout -e BLAttr;
+                scrollLayout -p BLAttr ScrollalphabetList;
+                setParent ..;    
+            setParent ..;
+        for($i = 0; $i < `size($alphabetList)`; $i++)
+            {   
+                scrollLayout -e -w 120 -h 100 ScrollalphabetList;
+                    rowLayout  -p ScrollalphabetList -numberOfColumns 2 -columnWidth2 40 100 -columnAttach2 left left ("AddBLAttr_lay_" + $i);
+                        textField -w 40 -tx $alphabetList[$i] -ed 0 -ebg 0 -bgc 0.165 0.165 0.165 ("AddBLAttr_txt_" + $i);
+                        checkBox -label "" -v 1 ("AddBLAttr_check_" + $i);
+                    setParent ..;
+                setParent ..;
+                optionVar -iv "bakelocCheck" $i;
+            }
+        }
+    }
+    else
+    {
+    error("ロケータの数が多すぎる為ロケータを作成できません");
+    }
+}
+
+global proc bakeToOrigin()
+{
+int $bakelocCheck = (`optionVar -q "bakelocCheck"` + 1);
+string $locOption[];
+string $SelAllList[];
+string $locAllList[];
+int $num = 0;
+int $Selsize = `size($SelAllList)`;
+float $Fframe  = `playbackOptions -q -min`;
+float $Lframe  = `playbackOptions -q -max`;
+
+if(1 == `scrollLayout -ex ScrollalphabetList`)
+    {
+    for($i = 0; $i < $bakelocCheck; $i++)
+        {
+        if(1 == `checkBox -q -value  ("AddBLAttr_check_" + $i)`)
+            {
+            $locOption[$num] = `textField -q -text ("AddBLAttr_txt_" + $i)`;
+            $num++;
+            }
+        }
+    }
+for($i = 0; $i < `size($locOption)`; $i++)
+    {
+    string $locList[] = `optionVar -q ("locAllList" + $locOption[$i])`;
+    appendStringArray($locAllList, $locList, size($locList));
+    }
+for($i = 0; $i < `size($locOption)`; $i++)
+    {
+    string $SelList[] = `optionVar -q ("SelAllList" + $locOption[$i])`;
+    appendStringArray($SelAllList, $SelList, size($SelList));
+    }
+for($i = 0; $i < $Selsize; $i++)
+    {
+    parentConstraint $locAllList[$i]  $SelAllList[$i];
+    }
+bakeResults -simulation 1 -t ($Fframe + ":"+ $Lframe) -pok 0  $SelAllList;
+delete $locAllList;
+for($i = 0; $i < `size($locOption)`; $i++)
+    {
+    delete ("gbakeloc_" + $locOption[$i]);
+    }
+}
+
+global proc selectToLoc()
+{
+int $bakelocCheck = (`optionVar -q "bakelocCheck"` + 1);
+string $locOption[];
+string $locAllList[];
+int $num = 0;
+if(1 == `scrollLayout -ex ScrollalphabetList`)
+    {
+    for($i = 0; $i < $bakelocCheck; $i++)
+        {
+        if(1 == `checkBox -q -value  ("AddBLAttr_check_" + $i)`)
+            {
+            $locOption[$num] = `textField -q -text ("AddBLAttr_txt_" + $i)`;
+            $num++;
+            }
+        }
+    }
+for($i = 0; $i < `size($locOption)`; $i++)
+    {
+    string $locList[] = `optionVar -q ("locAllList" + $locOption[$i])`;
+    appendStringArray($locAllList, $locList, size($locList));
+    }
+select -r $locAllList;
+}
+
+global proc selectToOrigin()
+{
+int $bakelocCheck = (`optionVar -q "bakelocCheck"` + 1);
+string $locOption[];
+string $SelAllList[];
+int $num = 0;
+if(1 == `scrollLayout -ex ScrollalphabetList`)
+    {
+    for($i = 0; $i < $bakelocCheck; $i++)
+        {
+        if(1 == `checkBox -q -value  ("AddBLAttr_check_" + $i)`)
+            {
+            $locOption[$num] = `textField -q -text ("AddBLAttr_txt_" + $i)`;
+            $num++;
+            }
+        }
+    }
+for($i = 0; $i < `size($locOption)`; $i++)
+    {
+    string $SelList[] = `optionVar -q ("SelAllList" + $locOption[$i])`;
+    appendStringArray($SelAllList, $SelList, size($SelList));
+    }
+select -r $SelAllList;
+}
+
+global proc Renew()
+{
+string $alphabet[] = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","y","z"};
+string $alphabetList[];
+string $alplist[];
+
+for($i = 0; $i <  `size($alphabet)`; $i++)
+    {
+    if(1 == `objExists ("*bakeloc_" + $alphabet[$i] + "_*")`)
+        {
+        $alplist[0] = $alphabet[$i];
+        appendStringArray($alphabetList, $alplist, size($alplist));
+        }
+    }
+if(1 <= `size($alphabetList)`)
+    {
+    if(1 == `scrollLayout -ex ScrollalphabetList`)
+        {
+        deleteUI -lay ScrollalphabetList;
+        }
+        columnLayout -e BLAttr;
+            scrollLayout -p BLAttr ScrollalphabetList;
+            setParent ..;    
+        setParent ..;
+    for($i = 0; $i < `size($alphabetList)`; $i++)
+        {   
+            scrollLayout -e -w 120 -h 100 ScrollalphabetList;
+                rowLayout  -p ScrollalphabetList -numberOfColumns 2 -columnWidth2 40 100 -columnAttach2 left left ("AddBLAttr_lay_" + $i);
+                    textField -w 40 -tx $alphabetList[$i] -ed 0 -ebg 0 -bgc 0.165 0.165 0.165 ("AddBLAttr_txt_" + $i);
+                    checkBox -label "" -v 1 ("AddBLAttr_check_" + $i);
+                setParent ..;
+            setParent ..;
+            optionVar -iv "bakelocCheck" $i;
+        }
+    }
+    else
+    {
+    if(1 == `scrollLayout -ex ScrollalphabetList`)
+        {
+        deleteUI -lay ScrollalphabetList;
+        }
+    }
+}
