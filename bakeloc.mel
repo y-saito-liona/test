@@ -1,4 +1,5 @@
-//tes
+//git—p‚És‚ğ‰Á‚¦‚½
+
 global proc bakeloc()
 {
 if(`window -ex bakelocWindow`) deleteUI bakelocWindow;
