@@ -1,4 +1,4 @@
-//tes23
+//tes2
 global proc bakeloc()
 {
 if(`window -ex bakelocWindow`) deleteUI bakelocWindow;
